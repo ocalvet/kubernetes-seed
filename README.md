@@ -15,3 +15,6 @@ A seed project to create an application deployment in this case I will use it to
   * If you encounter an error you migh need to give your user access: `$ kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=[user@gmail.com]`
 5. Create Traefik DaemonSet
 `$ `
+
+
+reference: (https://docs.traefik.io/user-guide/kubernetes/)[Traefik]
