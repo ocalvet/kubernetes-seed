@@ -17,4 +17,4 @@ A seed project to create an application deployment in this case I will use it to
 `$ `
 
 
-reference: (https://docs.traefik.io/user-guide/kubernetes/)[Traefik]
+reference: (Traefik)[https://docs.traefik.io/user-guide/kubernetes/]
