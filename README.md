@@ -8,7 +8,7 @@ A seed project to create an application deployment in this case I will use it to
 2. Deploy the sample google app
 `$ kubectl run web --image=gcr.io/google-samples/hello-app:1.0 --port=8080`
 3. Create a service
-`$ kubectl expose deployment web --target-port=8080 --type=NodePort`
+`$ kubectl expose deployment web --target-port=8080 --type=ClusterIP`
 - Traefik
 4. Create Traefik Role Bindings
 `$ kubectl apply -f traefik-rbac.yaml`
