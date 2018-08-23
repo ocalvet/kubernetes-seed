@@ -1,7 +1,7 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
-  name: account-storage
+  name: accounts-storage
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
@@ -9,9 +9,9 @@ parameters:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo
+  name: accounts-mongo
   labels:
-    name: mongo
+    name: accounts-mongo
 spec:
   ports:
   - port: 27017
@@ -19,23 +19,24 @@ spec:
   clusterIP: None
   selector:
     role: mongo
+    app: accounts
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: mongo
+  name: accounts-mongo
 spec:
-  serviceName: "mongo"
+  serviceName: "accounts-mongo"
   replicas: 3
   template:
     metadata:
       labels:
         role: mongo
-        environment: test
+        app: accounts
     spec:
       terminationGracePeriodSeconds: 10
       containers:
-        - name: mongo
+        - name: accounts-mongo
           image: mongo
           command:
             - mongod
@@ -48,20 +49,20 @@ spec:
           ports:
             - containerPort: 27017
           volumeMounts:
-            - name: mongo-persistent-storage
+            - name: accounts-persistent-storage
               mountPath: /data/db
-        - name: mongo-sidecar
+        - name: accounts-mongo-sidecar
           image: cvallance/mongo-k8s-sidecar
           env:
             - name: MONGO_SIDECAR_POD_LABELS
-              value: "role=mongo,environment=test"
+              value: "role=mongo,app=accounts"
             - name: KUBERNETES_MONGO_SERVICE_NAME
-              value: "mongo"
+              value: "accounts-mongo"
   volumeClaimTemplates:
   - metadata:
-      name: mongo-persistent-storage
+      name: accounts-persistent-storage
       annotations:
-        volume.beta.kubernetes.io/storage-class: "account-storage"
+        volume.beta.kubernetes.io/storage-class: "accounts-storage"
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
@@ -75,6 +76,7 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
+    role: api
     app: accounts
   ports:
     - name: http
@@ -88,23 +90,26 @@ kind: Deployment
 metadata:
   name: accounts-deployment
   labels:
+    role: api
     app: accounts
 spec:
   replicas: 2
   selector:
     matchLabels:
+      role: api
       app: accounts
   template:
     metadata:
       labels:
+        role: api
         app: accounts
     spec:
       containers:
-      - name: accounts
+      - name: accounts-api
         image: gcr.io/ncci-k8s/accounts-service
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
           - name: DB_HOST
-            value: mongo-0.mongo
+            value: accounts-mongo-0.accounts-mongo
