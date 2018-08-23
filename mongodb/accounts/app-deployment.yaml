@@ -1,8 +1,7 @@
-# Storage class to persist database data
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
-  name: fast
+  name: account-storage
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
@@ -42,6 +41,8 @@ spec:
             - mongod
             - "--replSet"
             - rs0
+            - "--bind_ip"
+            - 0.0.0.0
             - "--smallfiles"
             - "--noprealloc"
           ports:
@@ -54,14 +55,56 @@ spec:
           env:
             - name: MONGO_SIDECAR_POD_LABELS
               value: "role=mongo,environment=test"
+            - name: KUBERNETES_MONGO_SERVICE_NAME
+              value: "mongo"
   volumeClaimTemplates:
   - metadata:
       name: mongo-persistent-storage
       annotations:
-        volume.beta.kubernetes.io/storage-class: "fast"
+        volume.beta.kubernetes.io/storage-class: "account-storage"
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
           storage: 3Gi
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts
+spec:
+  type: LoadBalancer
+  selector:
+    app: accounts
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts-deployment
+  labels:
+    app: accounts
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: accounts
+  template:
+    metadata:
+      labels:
+        app: accounts
+    spec:
+      containers:
+      - name: accounts
+        image: gcr.io/ncci-k8s/accounts-service
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+          - name: DB_HOST
+            value: mongo-0.mongo
