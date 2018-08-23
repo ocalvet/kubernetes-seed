@@ -1,3 +1,4 @@
+## Create Stateful Set
 * Create cluster
 `$ gcloud container clusters create "test-cluster"`
 * Authenticate into the cluster
@@ -6,3 +7,7 @@
 `$ kubectl apply -f StorageClass.yaml`
 * Create Statefull Set
 `$ kubectl apply -f StatefulSet.yaml`
+
+## Cleanup
+* Delete the cluster
+`$ gcloud container clusters delete "test-cluster"`
