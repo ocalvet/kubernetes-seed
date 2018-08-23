@@ -3,10 +3,10 @@
 `$ gcloud container clusters create "test-cluster"`
 * Authenticate into the cluster
 `$ gcloud container clusters get-credentials test-cluster`
-* Create the storage
-`$ kubectl apply -f StorageClass.yaml`
-* Create Statefull Set
-`$ kubectl apply -f StatefulSet.yaml`
+* Create the storage for each service
+`$ kubectl apply -f Service/StorageClass.yaml`
+* Create Statefull Set for each service
+`$ kubectl apply -f Service/StatefulSet.yaml`
 
 ## Cleanup
 * Delete the cluster

@@ -1,0 +1,17 @@
+{
+  "name": "accounts",
+  "version": "1.0.0",
+  "description": "A service that exposes an api to the accounts data",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo 'Yo... where are the tests...'"
+  },
+  "keywords": [],
+  "author": "Ovidio R. Calvet",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.16.3",
+    "mongodb": "^3.1.3"
+  }
+}
