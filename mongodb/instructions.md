@@ -1,6 +1,6 @@
 ## Create Stateful Set
 * Create cluster
-`$ gcloud container clusters create --enable-legacy-authorization --preemptible "test-cluster"`
+`$ gcloud container clusters create --enable-legacy-authorization --preemptible --num-nodes 8 "test-cluster"`
 * Authenticate into the cluster
 `$ gcloud container clusters get-credentials test-cluster`
 * Create the storage for each service
