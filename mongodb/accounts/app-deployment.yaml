@@ -9,24 +9,23 @@ parameters:
 apiVersion: v1
 kind: Service
 metadata:
-  name: accounts-mongo
-  labels:
-    name: accounts-mongo
+  name: accounts
 spec:
-  ports:
-  - port: 27017
-    targetPort: 27017
-  clusterIP: None
+  type: LoadBalancer
   selector:
-    role: mongo
     app: accounts
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: accounts-mongo
+  name: accounts
 spec:
-  serviceName: "accounts-mongo"
+  serviceName: "accounts"
   replicas: 3
   template:
     metadata:
@@ -36,12 +35,20 @@ spec:
     spec:
       terminationGracePeriodSeconds: 10
       containers:
+        - name: accounts-api
+          image: gcr.io/ncci-k8s/accounts-service
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8080
+          env:
+            - name: DB_URL
+              value: "mongodb://localhost:27017/?replicaSet=accountsrs"
         - name: accounts-mongo
           image: mongo
           command:
             - mongod
             - "--replSet"
-            - rs0
+            - accountsrs
             - "--bind_ip"
             - 0.0.0.0
             - "--smallfiles"
@@ -57,7 +64,7 @@ spec:
             - name: MONGO_SIDECAR_POD_LABELS
               value: "role=mongo,app=accounts"
             - name: KUBERNETES_MONGO_SERVICE_NAME
-              value: "accounts-mongo"
+              value: "accounts"
   volumeClaimTemplates:
   - metadata:
       name: accounts-persistent-storage
@@ -68,48 +75,3 @@ spec:
       resources:
         requests:
           storage: 3Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: accounts
-spec:
-  type: LoadBalancer
-  selector:
-    role: api
-    app: accounts
-  ports:
-    - name: http
-      port: 80
-      targetPort: 8080
-      protocol: TCP
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: accounts-deployment
-  labels:
-    role: api
-    app: accounts
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      role: api
-      app: accounts
-  template:
-    metadata:
-      labels:
-        role: api
-        app: accounts
-    spec:
-      containers:
-      - name: accounts-api
-        image: gcr.io/ncci-k8s/accounts-service
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8080
-        env:
-          - name: DB_HOST
-            value: accounts-mongo-0.accounts-mongo

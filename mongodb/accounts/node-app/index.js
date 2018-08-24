@@ -2,15 +2,16 @@ const MongoClient = require('mongodb').MongoClient;
 const express = require('express');
 const app = express();
 const port = process.env.APP_PORT || 8080;
-const dbhost = process.env.DB_HOST || 'localhost';
-const dbport = process.env.DB_PORT || 27017;
-const dbname = process.env.DB_NAME || 'accounts';
-const mongoUrl = `mongodb://${dbhost}:${dbport}`;
+const mongoUrl = process.env.DB_URL || 'mongodb://localhost:27017';
+const connectOptions = { 
+    useNewUrlParser: true, 
+};
+const dbname = 'accounts';
 
 app.get('/ping', (req, res) => res.end('pong'));
 
 app.get('/', (req, res) => {
-    MongoClient.connect(mongoUrl, { useNewUrlParser: true },  (err, client) => {
+    MongoClient.connect(mongoUrl, connectOptions,  (err, client) => {
         if (err) {
             res.statusCode = 400;
             res.json({...err});
@@ -30,7 +31,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/seed', (req, res) => {
-    MongoClient.connect(mongoUrl, { useNewUrlParser: true }, (err, client) => {
+    MongoClient.connect(mongoUrl, connectOptions, (err, client) => {
         if (err) {
             res.statusCode = 400;
             res.json({...err});
