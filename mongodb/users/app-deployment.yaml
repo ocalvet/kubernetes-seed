@@ -1,7 +1,7 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
-  name: accounts-storage
+  name: users-storage
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
@@ -9,11 +9,11 @@ parameters:
 apiVersion: v1
 kind: Service
 metadata:
-  name: accounts
+  name: users
 spec:
   type: LoadBalancer
   selector:
-    app: accounts
+    app: users
   ports:
     - name: http
       port: 80
@@ -23,30 +23,30 @@ spec:
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: accounts
+  name: users
 spec:
-  serviceName: "accounts"
+  serviceName: "users"
   replicas: 3
   template:
     metadata:
       labels:
         role: mongo
-        app: accounts
+        app: users
     spec:
       terminationGracePeriodSeconds: 10
       containers:
-        - name: accounts-api
-          image: gcr.io/ncci-k8s/accounts-service
-          imagePullPolicy: Always
+        - name: users-api
+          image: gcr.io/ncci-k8s/users-service
           resources:
             requests:
               cpu: 20m
+          imagePullPolicy: Always
           ports:
           - containerPort: 8080
           env:
             - name: DB_URL
-              value: "mongodb://localhost:27017/?replicaSet=accountsrs"
-        - name: accounts-mongo
+              value: "mongodb://localhost:27017/?replicaSet=usersrs"
+        - name: users-mongo
           image: mongo
           resources:
             requests:
@@ -54,7 +54,7 @@ spec:
           command:
             - mongod
             - "--replSet"
-            - accountsrs
+            - usersrs
             - "--bind_ip"
             - 0.0.0.0
             - "--smallfiles"
@@ -62,23 +62,23 @@ spec:
           ports:
             - containerPort: 27017
           volumeMounts:
-            - name: accounts-persistent-storage
+            - name: users-persistent-storage
               mountPath: /data/db
-        - name: accounts-mongo-sidecar
+        - name: users-mongo-sidecar
           image: cvallance/mongo-k8s-sidecar
           resources:
             requests:
               cpu: 20m
           env:
             - name: MONGO_SIDECAR_POD_LABELS
-              value: "role=mongo,app=accounts"
+              value: "role=mongo,app=users"
             - name: KUBERNETES_MONGO_SERVICE_NAME
-              value: "accounts"
+              value: "users"
   volumeClaimTemplates:
   - metadata:
-      name: accounts-persistent-storage
+      name: users-persistent-storage
       annotations:
-        volume.beta.kubernetes.io/storage-class: "accounts-storage"
+        volume.beta.kubernetes.io/storage-class: "users-storage"
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:

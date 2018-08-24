@@ -1,7 +1,7 @@
 {
-  "name": "shippings",
+  "name": "users",
   "version": "1.0.0",
-  "description": "A service that exposes an api to the shippings data",
+  "description": "A service that exposes an api to the users data",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

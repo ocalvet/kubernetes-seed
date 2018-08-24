@@ -1,8 +1,7 @@
-# Storage class to persist database data
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
-  name: fast
+  name: shippings-storage
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
@@ -10,58 +9,78 @@ parameters:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo
-  labels:
-    name: mongo
+  name: shippings
 spec:
-  ports:
-  - port: 27017
-    targetPort: 27017
-  clusterIP: None
+  type: LoadBalancer
   selector:
-    role: mongo
+    app: shippings
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: mongo
+  name: shippings
 spec:
-  serviceName: "mongo"
+  serviceName: "shippings"
   replicas: 3
   template:
     metadata:
       labels:
         role: mongo
-        environment: test
+        app: shippings
     spec:
       terminationGracePeriodSeconds: 10
       containers:
-        - name: mongo
+        - name: shippings-api
+          image: gcr.io/ncci-k8s/shippings-service
+          resources:
+            requests:
+              cpu: 20m
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8080
+          env:
+            - name: DB_URL
+              value: "mongodb://localhost:27017/?replicaSet=shippingsrs"
+        - name: shippings-mongo
           image: mongo
+          resources:
+            requests:
+              cpu: 20m
           command:
             - mongod
             - "--replSet"
-            - rs0
+            - shippingsrs
+            - "--bind_ip"
+            - 0.0.0.0
             - "--smallfiles"
             - "--noprealloc"
           ports:
             - containerPort: 27017
           volumeMounts:
-            - name: mongo-persistent-storage
+            - name: shippings-persistent-storage
               mountPath: /data/db
-        - name: mongo-sidecar
+        - name: shippings-mongo-sidecar
           image: cvallance/mongo-k8s-sidecar
+          resources:
+            requests:
+              cpu: 20m
           env:
             - name: MONGO_SIDECAR_POD_LABELS
-              value: "role=mongo,environment=test"
+              value: "role=mongo,app=shippings"
+            - name: KUBERNETES_MONGO_SERVICE_NAME
+              value: "shippings"
   volumeClaimTemplates:
   - metadata:
-      name: mongo-persistent-storage
+      name: shippings-persistent-storage
       annotations:
-        volume.beta.kubernetes.io/storage-class: "fast"
+        volume.beta.kubernetes.io/storage-class: "shippings-storage"
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
           storage: 3Gi
----
