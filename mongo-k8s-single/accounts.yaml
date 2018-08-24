@@ -1,10 +1,23 @@
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: accounts-storage
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: accounts-persistent-storage-claim
+  labels:
+    app: accounts
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
 ---
 apiVersion: v1
 kind: Service
@@ -14,73 +27,91 @@ spec:
   type: LoadBalancer
   selector:
     app: accounts
+    role: api
   ports:
     - name: http
       port: 80
       targetPort: 8080
       protocol: TCP
 ---
-apiVersion: apps/v1beta1
-kind: StatefulSet
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: accounts
 spec:
-  serviceName: "accounts"
+  selector:
+    matchLabels:
+      app: accounts
+      role: api
   replicas: 3
   template:
     metadata:
       labels:
-        role: mongo
         app: accounts
+        role: api
     spec:
-      terminationGracePeriodSeconds: 10
       containers:
         - name: accounts-api
           image: gcr.io/ncci-k8s/accounts-service
           imagePullPolicy: Always
-          resources:
-            requests:
-              cpu: 20m
           ports:
           - containerPort: 8080
           env:
             - name: DB_URL
-              value: "mongodb://localhost:27017/?replicaSet=accountsrs"
+              value: "mongodb://accounts-db:27017"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts-db
+spec:
+  type: ClusterIP
+  selector:
+    app: accounts
+    role: database
+  ports:
+  - port: 27017
+    targetPort: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts-db
+spec:
+  selector:
+    matchLabels:
+      app: accounts
+      role: database
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: accounts
+        role: database
+    spec:
+      containers:
         - name: accounts-mongo
-          image: mongo
-          resources:
-            requests:
-              cpu: 20m
-          command:
-            - mongod
-            - "--replSet"
-            - accountsrs
-            - "--bind_ip"
-            - 0.0.0.0
-            - "--smallfiles"
-            - "--noprealloc"
+          image: mongo:4.0
           ports:
-            - containerPort: 27017
+            - name: mongodb
+              containerPort: 27017
           volumeMounts:
             - name: accounts-persistent-storage
               mountPath: /data/db
-        - name: accounts-mongo-sidecar
-          image: cvallance/mongo-k8s-sidecar
-          resources:
-            requests:
-              cpu: 20m
-          env:
-            - name: MONGO_SIDECAR_POD_LABELS
-              value: "role=mongo,app=accounts"
-            - name: KUBERNETES_MONGO_SERVICE_NAME
-              value: "accounts"
-  volumeClaimTemplates:
-  - metadata:
-      name: accounts-persistent-storage
-      annotations:
-        volume.beta.kubernetes.io/storage-class: "accounts-storage"
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 3Gi
+      volumes:
+        - name: accounts-persistent-storage
+          persistentVolumeClaim:
+            claimName: accounts-persistent-storage-claim
+
+  # volumeClaimTemplates:
+  # - metadata:
+  #     name: accounts-persistent-storage
+  #     annotations:
+  #       volume.beta.kubernetes.io/storage-class: "accounts-storage"
+  #   spec:
+  #     accessModes: [ "ReadWriteOnce" ]
+  #     resources:
+  #       requests:
+  #         storage: 3Gi
+
+

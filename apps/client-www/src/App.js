@@ -28,16 +28,26 @@ class App extends Component {
     }, POL_INTERVAL);
   }
 
+  request (url, options, timeout = 1000) {
+    return Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), timeout)
+        )
+    ]);
+  }
+
   async getServiceData(service) {
     try {
-      const serviceResponse = await fetch(`${SERVICES[service]}`);
+      const serviceResponse = await this.request(`${SERVICES[service]}`);
       console.log(`${service} response`, serviceResponse);
       if (serviceResponse.status !== 200) {
         this.setError(service, `Service ${service} not available`);
+      } else {
+        const serviceData = await serviceResponse.json();
+        console.log(`${service} response`, serviceData);
+        this.setServiceData(service, serviceData);
       }
-      const serviceData = await serviceResponse.json();
-      console.log(`${service} response`, serviceData);
-      this.setServiceData(service, serviceData);
     } catch (e) {
       this.setError(service, `Error retrieving service ${service}`, e);
     }
@@ -66,29 +76,32 @@ class App extends Component {
   render() {
     const serviceContainerStyles = { border: '1px solid black', padding: 15, width: '30%', height: 500, overflowY: 'auto' };
     const { accounts, shipping, users } = this.state;
+    const accountStyles = { ...serviceContainerStyles, backgroundColor: accounts.errorMessage ? '#ffbba0' : 'white' };
+    const shippingStyles = { ...serviceContainerStyles, backgroundColor: shipping.errorMessage ? '#ffbba0' : 'white' };
+    const userStyles = { ...serviceContainerStyles, backgroundColor: users.errorMessage ? '#ffbba0' : 'white' };
     return (
       <div>
         {(accounts && shipping && users) ?
           <div style={{ padding: 20 }}>
             {/* <h1>Kubernetes services testing application</h1> */}
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-              <div style={serviceContainerStyles}>
+              <div style={accountStyles}>
                 <h4>Accounts Service Data</h4>
-                <hr />
+                <div style={{ height: 2, borderBottom: '2px black solid ', marginBottom: 10 }} />
                 {!accounts.errorMessage ?
                   accounts.data.map((account, i) => (<Account key={i} account={account} />)) :
                   <div>{accounts.errorMessage}</div>}
               </div>
-              <div style={serviceContainerStyles}>
+              <div style={shippingStyles}>
                 <h4>Shipping Service Data</h4>
-                <hr />
+                <div style={{ height: 2, borderBottom: '2px black solid ', marginBottom: 10 }} />
                 {!shipping.errorMessage ?
                   shipping.data.map((shipment, i) => (<Shipping key={i} shipping={shipment} />)) :
                   <div>{shipping.errorMessage}</div>}
               </div>
-              <div style={serviceContainerStyles}>
-                <h4>Users Service Data</h4>
-                <hr />
+              <div style={userStyles}>
+                <h4>Users Service Data</h4>                
+                <div style={{ height: 2, borderBottom: '2px black solid ', marginBottom: 10 }} />
                 {!users.errorMessage ?
                   users.data.map((user, i) => (<User key={i} user={user} />)) :
                   <div>{users.errorMessage}</div>}

@@ -1,10 +1,23 @@
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: shippings-storage
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shippings-persistent-storage-claim
+  labels:
+    app: shippings
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
 ---
 apiVersion: v1
 kind: Service
@@ -14,73 +27,78 @@ spec:
   type: LoadBalancer
   selector:
     app: shippings
+    role: api
   ports:
     - name: http
       port: 80
       targetPort: 8080
       protocol: TCP
 ---
-apiVersion: apps/v1beta1
-kind: StatefulSet
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: shippings
 spec:
-  serviceName: "shippings"
+  selector:
+    matchLabels:
+      app: shippings
+      role: api
   replicas: 3
   template:
     metadata:
       labels:
-        role: mongo
         app: shippings
+        role: api
     spec:
-      terminationGracePeriodSeconds: 10
       containers:
         - name: shippings-api
           image: gcr.io/ncci-k8s/shippings-service
-          resources:
-            requests:
-              cpu: 20m
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
           env:
             - name: DB_URL
-              value: "mongodb://localhost:27017/?replicaSet=shippingsrs"
+              value: "mongodb://shippings-db:27017"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shippings-db
+spec:
+  type: ClusterIP
+  selector:
+    app: shippings
+    role: database
+  ports:
+  - port: 27017
+    targetPort: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shippings-db
+spec:
+  selector:
+    matchLabels:
+      app: shippings
+      role: database
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: shippings
+        role: database
+    spec:
+      containers:
         - name: shippings-mongo
-          image: mongo
-          resources:
-            requests:
-              cpu: 20m
-          command:
-            - mongod
-            - "--replSet"
-            - shippingsrs
-            - "--bind_ip"
-            - 0.0.0.0
-            - "--smallfiles"
-            - "--noprealloc"
+          image: mongo:4.0
           ports:
-            - containerPort: 27017
+            - name: mongodb
+              containerPort: 27017
           volumeMounts:
             - name: shippings-persistent-storage
               mountPath: /data/db
-        - name: shippings-mongo-sidecar
-          image: cvallance/mongo-k8s-sidecar
-          resources:
-            requests:
-              cpu: 20m
-          env:
-            - name: MONGO_SIDECAR_POD_LABELS
-              value: "role=mongo,app=shippings"
-            - name: KUBERNETES_MONGO_SERVICE_NAME
-              value: "shippings"
-  volumeClaimTemplates:
-  - metadata:
-      name: shippings-persistent-storage
-      annotations:
-        volume.beta.kubernetes.io/storage-class: "shippings-storage"
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 3Gi
+      volumes:
+        - name: shippings-persistent-storage
+          persistentVolumeClaim:
+            claimName: shippings-persistent-storage-claim

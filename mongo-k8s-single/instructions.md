@@ -3,10 +3,9 @@
 `$ gcloud container clusters create --enable-legacy-authorization --preemptible --num-nodes 8 "test-cluster"`
 * Authenticate into the cluster
 `$ gcloud container clusters get-credentials test-cluster`
-* Create the storage for each service
-`$ kubectl apply -f Service/StorageClass.yaml`
-* Create Statefull Set for each service
-`$ kubectl apply -f Service/StatefulSet.yaml`
+### TODO
+* Add instructions for building and pushing images to container registry
+* Add instructions for deploying each endpoint
 
 ## Cleanup
 * Delete the cluster
