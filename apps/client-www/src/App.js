@@ -17,18 +17,21 @@ class App extends Component {
     },
     users: {
       data: []
-    }
+    },
+    message: 'Starting app',
   }
 
   componentDidMount() {
-    setInterval(() => {
-      this.getServiceData('accounts');
-      this.getServiceData('shipping');
-      this.getServiceData('users');
+    setInterval(async () => {
+      this.setState({...this.state, message: 'Getting data...'});
+      await this.getServiceData('accounts');
+      await this.getServiceData('shipping');
+      await this.getServiceData('users');
+      this.setState({...this.state, message: ''});
     }, POL_INTERVAL);
   }
 
-  request (url, options, timeout = 1000) {
+  request (url, options, timeout = 2000) {
     return Promise.race([
         fetch(url, options),
         new Promise((_, reject) =>
@@ -83,7 +86,7 @@ class App extends Component {
       <div>
         {(accounts && shipping && users) ?
           <div style={{ padding: 20 }}>
-            {/* <h1>Kubernetes services testing application</h1> */}
+            <h2>Kubernetes services testing application</h2>
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
               <div style={accountStyles}>
                 <h4>Accounts Service Data</h4>
@@ -107,6 +110,7 @@ class App extends Component {
                   <div>{users.errorMessage}</div>}
               </div>
             </div>
+            <h4>{this.state.message}</h4>
           </div> :
           <h4>Starting...</h4>}
       </div>
